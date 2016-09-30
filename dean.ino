@@ -22,10 +22,10 @@ int arus2 = 0;
 int arus3 = 0;
 
 
-double temp_amp1 = 0.0; //gunakan tipe data double pada penampung penjumlahan arus sensor
-float temps1, adcVolt1, cal_value1;
-unsigned long calTime1 = 0, time_cal1 = 600;
-boolean on_calibrasi1 = false;
+double temp_amp1, temp_amp2, temp_amp3 = 0.0; //gunakan tipe data double pada penampung penjumlahan arus sensor
+float temps1, adcVolt1, cal_value1, temps2, adcVolt2, cal_value2, temps3, adcVolt3, cal_value3;
+unsigned long calTime1, calTime2, calTime3 = 0, time_cal1, time_cal2, time_cal3 = 600;
+boolean on_calibrasi1, on_calibrasi2, on_calibrasi3 = false;
 
 SoftwareSerial serialSIM800(SIM800_TX_PIN, SIM800_RX_PIN);
 
@@ -70,8 +70,7 @@ void setup() {
   Serial.println("SMS Terkirim");
 
   // put your setup code here, to run once:
-  timer.setInterval(1000L, sensortegangan);
-  timer.setInterval(1000L, arusbaca1);
+  timer.setInterval(1000L, bacasensor);
 }
 
 void loop() {
@@ -79,58 +78,27 @@ void loop() {
   timer.run();
 }
 
-void sensortegangan () {
+void bacasensor () {
 
-  lcd.clear;
-  tegangan = map(analogRead(VOLTAGEPIN), 0, 1023, 0, 325);
+  lcd.clear();
 
-  if (tegangan <= 190)
-  {
-    
-    lcd.setCursor(0, 0); lcd.print("Tegangan: ");
-    lcd.print(tegangan); lcd.print("V");
-    serialSIM800.begin(9600);
-    delay(1000);
-    Serial.println("Setup Complete!");
-    Serial.println("Sending SMS...");
-    serialSIM800.write("AT+CMGF=1\r\n");
-    delay(1000);
-    serialSIM800.write("AT+CMGS=\"087770933435\"\r\n");
-    delay(1000);
-    serialSIM800.write("Tegangan dibawah Standar Keamanan, Perlu Ditindak Lanjuti");
-    delay(1000);
-    serialSIM800.write((char)26);
-    delay(1000);
-    Serial.println("SMS Terkirim");
+  //BACA TEGANGAN
+  tegangan = map(analogRead(VOLTAGEPIN), 0, 1023, 0, 220);
+  lcd.setCursor(0, 0); lcd.print("Tegangan: ");
+  lcd.print(tegangan); lcd.print("V");
 
-  } else
-  {
-    lcd.setCursor(0, 0); lcd.print("Tegangan : ");
-    lcd.print(tegangan); lcd.print("V");
-    digitalWrite(RelayVariak, LOW);
+  if (tegangan <= 190 ) {
+    alertlebihtegangan();
   }
-}
 
-
-
-
-void arusbaca1() {
+  //BACA ARUS 1 ================================================================================================
   temps1     = analogRead(CURRENTPIN1) * (5.0 / 1023.0); //convert ke tegangan dari ADC
   adcVolt1   = abs(temps1 - 2.50); //mengambil selisih tegangan pada zero point
   adcVolt1  /= 0.185; //Arus dalam A
   adcVolt1  *= 1000; //merubah Arus A ke mA
 
-  //proses kalibrasi
-  /*
-    bagian if(calTime < time_cal) merupakan seleksi waktu. Digunakan sebagai
-    pembatas satu kali kalibrasi, hal ini sangat di anjurkan untuk mengurangi
-    kelebihan muatan pada var calTime dan temp_amp11 dimana jika tidak di batasi
-    akan melakukan penambahan berulang-ulang.
-  */
   if (calTime1 < time_cal1) {
     calTime1++;
-    Serial.print("Kalibrasi Time:");
-    Serial.println(calTime1);
     temp_amp1 += adcVolt1; //penjumlahan arus output sensor
     on_calibrasi1 = true;
   } else if (on_calibrasi1 == true) {
@@ -141,42 +109,133 @@ void arusbaca1() {
   if (on_calibrasi1 == false) {
     adcVolt1 -= cal_value1;
     adcVolt1 = abs(adcVolt1);
-    Serial.println("Dalam");
-    Serial.print(" mA :");
-    Serial.println(adcVolt1);
-    //adcVolt1 /= 1000;
-    //Serial.print(" A :");
-    //Serial.println(adcVolt1);
-    Serial.println(" ");
+    adcVolt1 /= 1000;
+    lcd.setCursor(0, 1); lcd.print("ARUS 1: ");
+    lcd.print(adcVolt1); lcd.print(" mA");
 
-    if (adcVolt1 >= 1)
-    {
-
-      lcd.setCursor(0, 1);
-      lcd.print("ARUS R: ");
-      lcd.print(adcVolt1);
-      lcd.print("A");
-      serialSIM800.begin(9600);
-      delay(1000);
-      Serial.println("Setup Complete!");
-      Serial.println("Sending SMS...");
-      serialSIM800.write("AT+CMGF=1\r\n");
-      delay(1000);
-      serialSIM800.write("AT+CMGS=\"085695709450\"\r\n");
-      delay(1000);
-      serialSIM800.write("Arus phase R Terjadi Arus Berlebih, Perlu Ditindak Lanjuti");
-      delay(1000);
-      serialSIM800.write((char)26);
-      delay(1000);
-      Serial.println("SMS Terkirim");
-
-    } else
-    {
-      lcd.setCursor(0, 1);
-      lcd.print("ARUS R: ");
-      lcd.print(adcVolt1);
-      lcd.print("A");
-      digitalWrite(RelayCurrent1, LOW);
+    if (adcVolt1 >= 1200 ) {
+      alertlebiharus1();
     }
   }
+
+
+  //BACA ARUS 2 ================================================================================================
+
+  temps2     = analogRead(CURRENTPIN2) * (5.0 / 1023.0); //convert ke tegangan dari ADC
+  adcVolt2   = abs(temps2 - 2.50); //mengambil selisih tegangan pada zero point
+  adcVolt2  /= 0.185; //Arus dalam A
+  adcVolt2  *= 1000; //merubah Arus A ke mA
+
+  if (calTime2 < time_cal2) {
+    calTime2++;
+    temp_amp2 += adcVolt2; //penjumlahan arus output sensor
+    on_calibrasi2 = true;
+  } else if (on_calibrasi2 == true) {
+    cal_value2 = temp_amp2 / time_cal2; //pembagian nilai keseluruhan dengan waktu
+    on_calibrasi2 = false;
+  }
+
+  if (on_calibrasi2 == false) {
+    adcVolt2 -= cal_value2;
+    adcVolt2 = abs(adcVolt2);
+    adcVolt2 /= 1000;
+    lcd.setCursor(0, 2); lcd.print("ARUS 2: ");
+    lcd.print(adcVolt2); lcd.print(" mA");
+
+    if (adcVolt2 >= 1200 ) {
+      alertlebiharus2();
+    }
+  }
+
+
+  //BACA ARUS 3 ================================================================================================
+
+  temps3     = analogRead(CURRENTPIN3) * (5.0 / 1023.0); //convert ke tegangan dari ADC
+  adcVolt3   = abs(temps3 - 2.50); //mengambil selisih tegangan pada zero point
+  adcVolt3  /= 0.185; //Arus dalam A
+  adcVolt3  *= 1000; //merubah Arus A ke mA
+
+  if (calTime3 < time_cal3) {
+    calTime3++;
+    temp_amp3 += adcVolt3; //penjumlahan arus output sensor
+    on_calibrasi3 = true;
+  } else if (on_calibrasi3 == true) {
+    cal_value3 = temp_amp3 / time_cal3; //pembagian nilai keseluruhan dengan waktu
+    on_calibrasi3 = false;
+  }
+
+  if (on_calibrasi3 == false) {
+    adcVolt1 -= cal_value1;
+    adcVolt1 = abs(adcVolt1);
+    lcd.setCursor(0, 3); lcd.print("ARUS 3: ");
+    lcd.print(adcVolt3); lcd.print(" mA");
+
+    if (adcVolt3 >= 1200 ) {
+      alertlebiharus3();
+    }
+  }
+}
+
+void alertlebihtegangan () {
+
+  serialSIM800.begin(9600);
+  delay(1000);
+  serialSIM800.write("AT+CMGF=1\r\n");
+  delay(1000);
+  serialSIM800.write("AT+CMGS=\"087770933435\"\r\n");
+  delay(1000);
+  serialSIM800.write("tegnagn nya lebih euyy paur Keamanan, Perlu Ditindak Lanjuti");
+  delay(1000);
+  serialSIM800.write((char)26);
+  delay(1000);
+  Serial.println("SMS Terkirim");
+
+}
+
+void alertlebiharus1 () {
+
+  serialSIM800.begin(9600);
+  delay(1000);
+  serialSIM800.write("AT+CMGF=1\r\n");
+  delay(1000);
+  serialSIM800.write("AT+CMGS=\"087770933435\"\r\n");
+  delay(1000);
+  serialSIM800.write("Arus 1 nya lebih euyy paur Keamanan, Perlu Ditindak Lanjuti");
+  delay(1000);
+  serialSIM800.write((char)26);
+  delay(1000);
+  Serial.println("SMS Terkirim");
+
+}
+
+void alertlebiharus2 () {
+
+  serialSIM800.begin(9600);
+  delay(1000);
+  serialSIM800.write("AT+CMGF=1\r\n");
+  delay(1000);
+  serialSIM800.write("AT+CMGS=\"087770933435\"\r\n");
+  delay(1000);
+  serialSIM800.write("Arus 2 nya lebih euyy paur Keamanan, Perlu Ditindak Lanjuti");
+  delay(1000);
+  serialSIM800.write((char)26);
+  delay(1000);
+  Serial.println("SMS Terkirim");
+
+}
+
+void alertlebiharus3 () {
+
+  serialSIM800.begin(9600);
+  delay(1000);
+  serialSIM800.write("AT+CMGF=1\r\n");
+  delay(1000);
+  serialSIM800.write("AT+CMGS=\"087770933435\"\r\n");
+  delay(1000);
+  serialSIM800.write("Arus 3 nya lebih euyy paur Keamanan, Perlu Ditindak Lanjuti");
+  delay(1000);
+  serialSIM800.write((char)26);
+  delay(1000);
+  Serial.println("SMS Terkirim");
+
 }
