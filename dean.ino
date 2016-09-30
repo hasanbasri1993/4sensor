@@ -144,9 +144,9 @@ void arusbaca1() {
     Serial.println("Dalam");
     Serial.print(" mA :");
     Serial.println(adcVolt1);
-    adcVolt1 /= 1000;
-    Serial.print(" A :");
-    Serial.println(adcVolt1);
+    //adcVolt1 /= 1000;
+    //Serial.print(" A :");
+    //Serial.println(adcVolt1);
     Serial.println(" ");
 
     if (adcVolt1 >= 1)
